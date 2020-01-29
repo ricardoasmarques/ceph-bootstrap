@@ -16,13 +16,14 @@ install cephadm:
 {{ macros.end_step('Install cephadm and other packages') }}
 
 {{ macros.begin_step('Download ceph container image') }}
-{% if 'container' in pillar['ceph-salt'] and 'ceph' in pillar['ceph-salt']['container']['images'] %}
 download ceph container image:
   cmd.run:
     - name: |
-        podman pull {{ pillar['ceph-salt']['container']['images']['ceph'] }}
+{%- if 'container' in pillar['ceph-salt'] and 'ceph' in pillar['ceph-salt']['container']['images'] %}
+        CEPHADM_IMAGE={{ pillar['ceph-salt']['container']['images']['ceph'] }} \
+{%- endif %}
+        cephadm pull
     - failhard: True
-{% endif %}
 {{ macros.end_step('Download ceph container image') }}
 
 {% if grains['id'] == pillar['ceph-salt']['bootstrap_minion'] %}
@@ -41,9 +42,6 @@ download ceph container image:
 run cephadm bootstrap:
   cmd.run:
     - name: |
-{%- if 'container' in pillar['ceph-salt'] and 'ceph' in pillar['ceph-salt']['container']['images'] %}
-        CEPHADM_IMAGE={{ pillar['ceph-salt']['container']['images']['ceph'] }} \
-{%- endif %}
         cephadm --verbose bootstrap --mon-ip {{ grains['fqdn_ip4'][0] }} \
                 --initial-dashboard-user {{ dashboard_username }} \
                 --output-keyring /etc/ceph/ceph.client.admin.keyring \
