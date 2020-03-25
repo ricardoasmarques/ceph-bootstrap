@@ -345,6 +345,21 @@ CEPH_SALT_OPTIONS = {
                     },
                 }
             },
+            'Registries': {
+                'type': 'list',
+                'default': [],
+                'help': '''
+                        List of custom registries.
+                        ==========================
+                        Add JSON objects in V2 format. e.g.,
+
+                        '{ "prefix":"docker.io", "location":"172.17.0.1:5000/docker.io",
+                           "insecure":true }'
+
+                        Where B{location} is mandatory.
+                        ''',
+                'handler': PillarHandler('ceph-salt:container:registries')
+            }
         }
     },
     'System_Update': {

@@ -126,6 +126,11 @@ class ConfigShellTest(SaltMockTestCase):
                                'ceph-salt:container:images:ceph',
                                'myvalue')
 
+    def test_containers_registries(self):
+        self.assertListOption('/Containers/Registries',
+                              'ceph-salt:container:registries',
+                              ['value1', 'value2'])
+
     def test_cephadm_bootstrap(self):
         self.assertFlagOption('/Cephadm_Bootstrap',
                               'ceph-salt:bootstrap_enabled')
