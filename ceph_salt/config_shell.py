@@ -346,7 +346,7 @@ CEPH_SALT_OPTIONS = {
                 }
             },
             'Registries': {
-                'type': 'list',
+                'type': 'registries',
                 'default': [],
                 'help': '''
                         List of custom registries.
@@ -667,6 +667,9 @@ class ListOptionNode(OptionNode):
         else:
             PP.pl_red('Value not found.')
 
+class RegistriesOptionNode(ListOptionNode):
+    def ui_command_add(self, location, prefix=None, insecure=None, blocked=None):
+        PP.pl_green('location={}, prefix={}, insecure={}, blocked={}'.format(location, prefix, insecure, blocked))
 
 class ConfElementNode(configshell.ConfigNode):
     def __init__(self, key, value, parent):
@@ -890,6 +893,8 @@ def _generate_option_node(option_name, option_dict, parent):
         FlagOptionNode(option_name, option_dict, parent)
     elif option_dict.get('type', None) == 'list':
         ListOptionNode(option_name, option_dict, parent)
+    elif option_dict.get('type', None) == 'registries':
+        RegistriesOptionNode(option_name, option_dict, parent)
     elif option_dict.get('type', None) == 'conf':
         ConfOptionNode(option_name, option_dict, parent)
     elif option_dict.get('type', None) == 'minions':
