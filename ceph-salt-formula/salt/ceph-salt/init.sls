@@ -3,6 +3,7 @@
 include:
     - .provision-begin
     - .sshkey
+    - .set-admin-host
     - .software
     - .container
     - .apparmor

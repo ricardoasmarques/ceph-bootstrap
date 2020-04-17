@@ -1,6 +1,10 @@
 # -*- encoding: utf-8 -*-
 import json
+import logging
 import time
+
+
+logger = logging.getLogger(__name__)
 
 
 def set_admin_host(name):
@@ -20,6 +24,7 @@ def set_admin_host(name):
                 if configured:
                     configured_admin_host = admin_host
                     break
+    logger.info("Setting ceph-salt:execution:admin_host: '%s'", configured_admin_host)
     __salt__['grains.set']('ceph-salt:execution:admin_host', configured_admin_host)
     return {'name': name, 'changes': {}, 'comment': '', 'result': True}
 

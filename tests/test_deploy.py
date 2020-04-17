@@ -324,15 +324,15 @@ class DeployTest(SaltMockTestCase):
         self.assertEqual(CephSaltExecutor.check_formula(), 3)
         ServiceMock.restart_result = True
 
-    def test_check_formula_exists2(self):
-        self.assertEqual(CephSaltExecutor.check_formula(), 4)
-
     def test_check_formula_exists3(self):
         SaltUtilMock.sync_all_result = False
         self.fs.create_file(os.path.join(self.states_fs_path(), 'ceph-salt.sls'))
-        self.assertEqual(CephSaltExecutor.check_formula(), 5)
+        self.assertEqual(CephSaltExecutor.check_formula(), 4)
         SaltUtilMock.sync_all_result = True
         self.fs.remove_object(os.path.join(self.states_fs_path(), 'ceph-salt.sls'))
+
+    def test_check_formula_exists2(self):
+        self.assertEqual(CephSaltExecutor.check_formula(), 5)
 
     def test_check_deployment_day1_with_minion(self):
         self.fs.create_file(os.path.join(self.states_fs_path(), 'ceph-salt.sls'))

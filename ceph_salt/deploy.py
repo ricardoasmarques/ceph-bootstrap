@@ -1214,15 +1214,6 @@ class CephSaltExecutor:
                 PP.pl_red('Failed to restart salt-master service, please restart it manually')
                 return 3
 
-        # checking ceph-salt again after salt-master restart
-        result = SaltClient.local_cmd('ceph-salt:member', 'state.sls_exists', ['ceph-salt'],
-                                      tgt_type='grain')
-        if not all(result.values()):
-            logger.error("ceph-salt formula still not found")
-            PP.pl_red("Could not find ceph-salt formula. Please check if ceph-salt-formula package"
-                      " is installed")
-            return 4
-
         PP.println("Syncing minions with the master...")
         result = SaltClient.local_cmd('ceph-salt:member', 'saltutil.sync_all', tgt_type='grain')
         for minion, value in result.items():
@@ -1231,7 +1222,17 @@ class CephSaltExecutor:
                 PP.pl_red("Sync failed, please run: "
                           "\"salt -G 'ceph-salt:member' saltutil.sync_all\" manually and fix "
                           "the problems reported")
-                return 5
+                return 4
+
+        # checking ceph-salt again after salt-master restart and minions sync
+        result = SaltClient.local_cmd('ceph-salt:member', 'state.sls_exists', ['ceph-salt'],
+                                      tgt_type='grain')
+        if not all(result.values()):
+            logger.error("ceph-salt formula still not found")
+            PP.pl_red("Could not find ceph-salt formula. Please check if ceph-salt-formula package"
+                      " is installed")
+            return 5
+
         return 0
 
     @staticmethod
