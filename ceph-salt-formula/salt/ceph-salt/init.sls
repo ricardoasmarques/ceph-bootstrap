@@ -11,7 +11,7 @@ include:
     - .provision-end
 {% if pillar['ceph-salt'].get('bootstrap_enabled', True) %}
     - .cephbootstrap
-    - .find-admin-host
+    - .wait-for-admin-host
     - .cephorch
     - .ceph-admin
 {% endif %}

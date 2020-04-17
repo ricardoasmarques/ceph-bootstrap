@@ -24,6 +24,13 @@ def end_stage(name):
     return _send_event('ceph-salt/stage/end', data={'desc': name})
 
 
+def skip_stage(name):
+    name = '{} (SKIPPED)'
+    begin_stage(name)
+    time.sleep(5)
+    end_stage(name)
+
+
 def begin_step(name):
     return _send_event('ceph-salt/step/begin', data={'desc': name})
 

@@ -2,6 +2,12 @@
 
 {% if grains['id'] == pillar['ceph-salt']['bootstrap_minion'] %}
 
+{% if salt['ceph_orch.remote_host_ls']() | length > 1 %}
+
+{{ macros.skip_stage('Bootstrap the Ceph cluster') }}
+
+{% else %}
+
 {{ macros.begin_stage('Bootstrap the Ceph cluster') }}
 
 {% set bootstrap_ceph_conf = pillar['ceph-salt'].get('bootstrap_ceph_conf', {}) %}
@@ -79,5 +85,7 @@ configure ssh orchestrator:
 {{ macros.end_step('Configure cephadm MGR module') }}
 
 {{ macros.end_stage('Bootstrap the Ceph cluster') }}
+
+{% endif %}
 
 {% endif %}

@@ -3,33 +3,38 @@ import json
 import time
 
 
+def set_admin_host(name):
+    configured_admin_host = None
+    admin_hosts = __pillar__['ceph-salt']['minions']['admin']
+    for admin_host in admin_hosts:
+        provisioned = __salt__['ceph_salt.get_remote_grain'](admin_host,
+                                                            'ceph-salt:execution:provisioned')
+        if provisioned:
+            configured_ret = __salt__['cmd.run_all']("ssh -o StrictHostKeyChecking=no "
+                                                    "-i /tmp/ceph-salt-ssh-id_rsa root@{} "
+                                                    "'salt-call ceph_orch.configured "
+                                                    "--out=json --out-indent=-1'".format(
+                                                        admin_host))
+            if configured_ret['retcode'] == 0:
+                configured = json.loads(configured_ret['stdout'])['local']
+                if configured:
+                    configured_admin_host = admin_host
+                    break
+    __salt__['grains.set']('ceph-salt:execution:admin_host', configured_admin_host)
+    return {'name': name, 'changes': {}, 'comment': '', 'result': True}
+
+
 def wait_for_admin_host(name, timeout=1800):
     ret = {'name': name, 'changes': {}, 'comment': '', 'result': False}
     starttime = time.time()
     timelimit = starttime + timeout
-    configured_admin_host = None
-    while not configured_admin_host:
+    while not __salt__['grains.get']('ceph-salt:execution:admin_host'):
         is_timedout = time.time() > timelimit
         if is_timedout:
             ret['comment'] = 'Timeout value reached.'
             return ret
         time.sleep(5)
-        admin_hosts = __pillar__['ceph-salt']['minions']['admin']
-        for admin_host in admin_hosts:
-            provisioned = __salt__['ceph_salt.get_remote_grain'](admin_host,
-                                                                'ceph-salt:execution:provisioned')
-            if provisioned:
-                configured_ret = __salt__['cmd.run_all']("ssh -o StrictHostKeyChecking=no "
-                                                        "-i /tmp/ceph-salt-ssh-id_rsa root@{} "
-                                                        "'salt-call ceph_orch.configured "
-                                                        "--out=json --out-indent=-1'".format(
-                                                            admin_host))
-                if configured_ret['retcode'] == 0:
-                    configured = json.loads(configured_ret['stdout'])['local']
-                    if configured:
-                        configured_admin_host = admin_host
-                        break
-    __salt__['grains.set']('ceph-salt:execution:admin_host', configured_admin_host)
+        set_admin_host(name)
     ret['result'] = True
     return ret
 
