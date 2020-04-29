@@ -1,6 +1,7 @@
 # pylint: disable=arguments-differ
 import itertools
 import logging
+import os
 import fnmatch
 import json
 
@@ -1066,8 +1067,14 @@ def generate_config_shell_tree(shell):
 class CephSaltConfigShell(configshell.ConfigShell):
     # pylint: disable=anomalous-backslash-in-string
     def __init__(self):
-        super(CephSaltConfigShell, self).__init__(
-            '~/.ceph_salt_config_shell')
+        preferences_dir = '~/.ceph_salt_config_shell'
+        preferences_dir = os.path.expanduser(preferences_dir)
+        if not os.path.exists(preferences_dir):
+            os.makedirs(preferences_dir)
+        preferences_file = '{}/prefs.bin'.format(preferences_dir)
+        if not os.path.exists(preferences_file):
+            open(preferences_file, "w").close()
+        super(CephSaltConfigShell, self).__init__(preferences_dir)
         # Grammar of the command line
         command = locatedExpr(Word(alphanums + '_'))('command')
         var = QuotedString('"') | QuotedString("'") | Word(alphanums + '?;&*$!#,=_\+/.<>()~@:-%[]')
