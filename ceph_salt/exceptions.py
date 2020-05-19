@@ -32,3 +32,7 @@ class MinionDoesNotExistInConfiguration(CephSaltException):
 
 class ParamsException(CephSaltException):
     pass
+
+
+class CannotOpenPrivateKey(Exception):
+    pass

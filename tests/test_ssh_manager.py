@@ -1,5 +1,6 @@
 import unittest
 from ceph_salt.core import SshKeyManager
+from ceph_salt.exceptions import CannotOpenPrivateKey
 
 
 class SshManagerTest(unittest.TestCase):
@@ -29,10 +30,9 @@ class SshManagerTest(unittest.TestCase):
             SshKeyManager.check_keys(None, None)
         self.assertEqual(str(ctx.exception), 'invalid private key')
 
-    def test_invalid_private_key(self):
-        with self.assertRaises(Exception) as ctx:
+    def test_cannot_open_private_key(self):
+        with self.assertRaises(CannotOpenPrivateKey):
             SshKeyManager.check_keys("invalid key", None)
-        self.assertEqual(str(ctx.exception), 'invalid private key')
 
     def test_invalid_private_key2(self):
         with self.assertRaises(Exception) as ctx:
