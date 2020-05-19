@@ -176,18 +176,32 @@ class ConfigShellTest(SaltMockTestCase):
     def test_ssh(self):
         self.shell.run_cmdline('/ssh generate')
         self.assertInSysOut('Key pair generated.')
-        self.assertNotEqual(PillarManager.get('ceph-salt:ssh:private_key'), None)
-        self.assertNotEqual(PillarManager.get('ceph-salt:ssh:public_key'), None)
+        private_key = PillarManager.get('ceph-salt:ssh:private_key')
+        public_key = PillarManager.get('ceph-salt:ssh:public_key')
+        self.assertNotEqual(private_key, None)
+        self.assertNotEqual(public_key, None)
+
+        self.shell.run_cmdline('/ssh generate')
+        self.assertInSysOut('Key pair generated.')
+        self.assertNotEqual(PillarManager.get('ceph-salt:ssh:private_key'), private_key)
+        self.assertNotEqual(PillarManager.get('ceph-salt:ssh:public_key'), public_key)
+
+        self.fs.create_file('/private.key', contents=private_key)
+        self.shell.run_cmdline('/ssh import /private.key')
+        self.assertInSysOut('Key pair imported.')
+        self.assertEqual(PillarManager.get('ceph-salt:ssh:private_key'), private_key)
+        self.assertEqual(PillarManager.get('ceph-salt:ssh:public_key'), public_key)
+        self.fs.remove('/private.key')
 
     def test_ssh_private_key(self):
-        self.assertValueOption('/ssh/private_key',
-                               'ceph-salt:ssh:private_key',
-                               'myprivatekey')
+        self.assertExportOption('/ssh/private_key',
+                                'ceph-salt:ssh:private_key',
+                                'myprivatekey')
 
     def test_ssh_public_key(self):
-        self.assertValueOption('/ssh/public_key',
-                               'ceph-salt:ssh:public_key',
-                               'mypublickey')
+        self.assertExportOption('/ssh/public_key',
+                                'ceph-salt:ssh:public_key',
+                                'mypublickey')
 
     def test_time_server(self):
         self.assertFlagOption('/time_server',
@@ -351,6 +365,15 @@ class ConfigShellTest(SaltMockTestCase):
             self.shell.run_cmdline('{} reset'.format(path))
             self.assertInSysOut('Value reset.')
             self.assertEqual(PillarManager.get(pillar_key), default)
+
+    def assertExportOption(self, path, pillar_key, value):
+        old_value = PillarManager.get(pillar_key)
+
+        PillarManager.set(pillar_key, value)
+        self.shell.run_cmdline('{} export'.format(path))
+        self.assertInSysOut(value)
+
+        PillarManager.set(pillar_key, old_value)
 
     def assertValueOption(self, path, pillar_key, value, default=None):
         self.shell.run_cmdline('{} set {}'.format(path, value))

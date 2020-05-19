@@ -3,6 +3,7 @@ import itertools
 import logging
 import fnmatch
 import json
+from pathlib import Path
 import random
 import string
 
@@ -33,6 +34,9 @@ class OptionHandler:
     def value(self):
         return None, None
 
+    def raw_value(self):
+        return None
+
     def save(self, value):
         pass
 
@@ -55,6 +59,9 @@ class OptionHandler:
     def commands_map(self):
         return {}
 
+    def completes_map(self):
+        return {}
+
 
 class PillarHandler(OptionHandler):
     def __init__(self, pillar_path, default=None):
@@ -63,6 +70,9 @@ class PillarHandler(OptionHandler):
 
     def value(self):
         return PillarManager.get(self.pillar_path), None
+
+    def raw_value(self):
+        return PillarManager.get(self.pillar_path)
 
     def save(self, value):
         PillarManager.set(self.pillar_path, value)
@@ -195,7 +205,13 @@ class CephSaltNodesHandler(OptionHandler):
 class SSHGroupHandler(OptionHandler):
     def commands_map(self):
         return {
-            'generate': self.generate_key_pair
+            'generate': self.generate_key_pair,
+            'import': self.import_key_pair
+        }
+
+    def completes_map(self):
+        return {
+            'import': self.complete_import_key
         }
 
     def generate_key_pair(self):
@@ -203,6 +219,24 @@ class SSHGroupHandler(OptionHandler):
         PillarManager.set('ceph-salt:ssh:private_key', private_key)
         PillarManager.set('ceph-salt:ssh:public_key', public_key)
         PP.pl_green('Key pair generated.')
+
+    def import_key_pair(self, private_key_path):
+        """
+        Import key pair from a private key
+        """
+        with open(private_key_path, 'r') as file:
+            private_key = file.read()
+        public_key = SshKeyManager.get_public_key(private_key)
+        PillarManager.set('ceph-salt:ssh:private_key', private_key)
+        PillarManager.set('ceph-salt:ssh:public_key', public_key)
+        PP.pl_green('Key pair imported.')
+
+    # pylint: disable=unused-argument
+    def complete_import_key(self, parameters, text, current_param):
+        path = Path(text)
+        if path.is_dir():
+            return [str(p) for p in path.iterdir()]
+        return [str(p) for p in path.parent.glob('{}*'.format(path.name))]
 
     def value(self):
         stored_priv_key = PillarManager.get('ceph-salt:ssh:private_key')
@@ -484,10 +518,12 @@ CEPH_SALT_OPTIONS = {
         'handler': SSHGroupHandler(),
         'options': {
             'private_key': {
+                'type': 'export',
                 'help': "SSH RSA private key",
                 'handler': SshPrivateKeyHandler()
             },
             'public_key': {
+                'type': 'export',
                 'help': "SSH RSA public key",
                 'handler': SshPublicKeyHandler()
             },
@@ -553,6 +589,8 @@ class GroupNode(configshell.ConfigNode):
         if self.handler:
             for cmd, func in self.handler.commands_map().items():
                 setattr(self, 'ui_command_{}'.format(cmd), func)
+            for cmd, func in self.handler.completes_map().items():
+                setattr(self, 'ui_complete_{}'.format(cmd), func)
 
     def list_commands(self):
         cmds = ['cd', 'ls', 'help', 'exit', 'reset', 'set']
@@ -651,7 +689,7 @@ class ValueOptionNode(OptionNode):
         Sets the value of option
         '''
         if self._read_only():
-            raise Exception("Option {} cannot be modified".format(self.option_name))
+            raise CephSaltException("Option {} cannot be modified".format(self.option_name))
         if 'handler' in self.option_dict:
             self.option_dict['handler'].save(value)
         else:
@@ -666,13 +704,27 @@ class ValueOptionNode(OptionNode):
         return matching
 
 
+class ExportOptionNode(OptionNode):
+    def _list_commands(self):
+        return ['export']
+
+    def ui_command_export(self):
+        '''
+        Export option value
+        '''
+        value = self.value
+        if 'handler' in self.option_dict:
+            value = self.option_dict['handler'].raw_value()
+        PP.println(value)
+
+
 class FlagOptionNode(OptionNode):
     def _list_commands(self):
         return ['enable', 'disable']
 
     def _set_option_value(self, bool_value):
         if self._read_only():
-            raise Exception("Option {} cannot be modified".format(self.option_name))
+            raise CephSaltException("Option {} cannot be modified".format(self.option_name))
         if 'handler' in self.option_dict:
             self.option_dict['handler'].save(bool_value)
         else:
@@ -1089,6 +1141,8 @@ def _generate_option_node(option_name, option_dict, parent):
         ConfOptionNode(option_name, option_dict, parent)
     elif option_dict.get('type', None) == 'minions':
         MinionsOptionNode(option_name, option_dict, parent)
+    elif option_dict.get('type', None) == 'export':
+        ExportOptionNode(option_name, option_dict, parent)
     else:
         ValueOptionNode(option_name, option_dict, parent)
 

@@ -6,7 +6,7 @@ import hashlib
 from Cryptodome.PublicKey import RSA
 import salt
 
-from .exceptions import CephNodeHasRolesException
+from .exceptions import CephNodeHasRolesException, CephSaltException
 from .salt_utils import SaltClient, GrainsManager, PillarManager
 
 
@@ -179,15 +179,7 @@ class SshKeyManager:
 
     @classmethod
     def check_keys(cls, stored_priv_key, stored_pub_key):
-        try:
-            key = RSA.import_key(stored_priv_key)
-        except (ValueError, IndexError, TypeError):
-            raise Exception('invalid private key')
-
-        if not key.has_private():
-            raise Exception('invalid private key')
-
-        pub_key = key.publickey().exportKey('OpenSSH').decode('utf-8')
+        pub_key = cls.get_public_key(stored_priv_key)
         if not stored_pub_key or pub_key != stored_pub_key:
             raise Exception('key pair does not match')
 
@@ -216,3 +208,15 @@ class SshKeyManager:
             if str(ex) == 'key pair does not match':
                 ex = Exception('public key does not match')
             raise ex
+
+    @classmethod
+    def get_public_key(cls, priv_key):
+        try:
+            key = RSA.import_key(priv_key)
+        except (ValueError, IndexError, TypeError):
+            raise CephSaltException('invalid private key')
+
+        if not key.has_private():
+            raise CephSaltException('invalid private key')
+
+        return key.publickey().exportKey('OpenSSH').decode('utf-8')
