@@ -69,7 +69,11 @@ configure ssh orchestrator:
         ceph config-key set mgr/cephadm/ssh_identity_key -i /tmp/ceph-salt-ssh-id_rsa
         ceph config-key set mgr/cephadm/ssh_identity_pub -i /tmp/ceph-salt-ssh-id_rsa.pub
         ceph mgr module enable cephadm && \
-        ceph orch set backend cephadm
+        ceph orch set backend cephadm && \
+        ceph orch host add {{ grains['host'] }} && \
+        ceph orch apply mon && \
+        ceph orch apply mgr && \
+        ceph orch apply crash
     - onchanges:
       - cmd: run cephadm bootstrap
     - failhard: True
