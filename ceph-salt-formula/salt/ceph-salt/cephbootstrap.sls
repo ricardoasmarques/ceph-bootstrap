@@ -6,6 +6,13 @@
 
 {% set bootstrap_ceph_conf = pillar['ceph-salt'].get('bootstrap_ceph_conf', {}) %}
 
+{% if 'mgr' not in bootstrap_ceph_conf %}
+{% if bootstrap_ceph_conf.__setitem__('mgr', {}) %}{% endif %}
+{% endif %}
+{% if 'mgr/cephadm/manage_etc_ceph_ceph_conf' not in bootstrap_ceph_conf['mgr'] %}
+{% if bootstrap_ceph_conf['mgr'].__setitem__('mgr/cephadm/manage_etc_ceph_ceph_conf', 'true') %}{% endif %}
+{% endif %}
+
 create bootstrap ceph conf:
   cmd.run:
     - name: |
