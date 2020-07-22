@@ -11,7 +11,7 @@ from .config_shell import run_config_cmdline, run_config_shell, run_status, run_
 from .exceptions import CephSaltException
 from .logging_utils import LoggingUtil
 from .terminal_utils import check_root_privileges, PrettyPrinter as PP
-from .apply import CephSaltExecutor
+from .execute import CephSaltExecutor
 
 
 logger = logging.getLogger(__name__)
@@ -101,7 +101,30 @@ def apply(non_interactive, minion_id):
     """
     Apply configuration by running ceph-salt formula
     """
-    executor = CephSaltExecutor(not non_interactive, minion_id)
+    executor = CephSaltExecutor(not non_interactive, minion_id,
+                                'ceph-salt', {})
+    retcode = executor.run()
+    sys.exit(retcode)
+
+
+@cli.command(name='update')
+@click.option('-n', '--non-interactive', is_flag=True, default=False,
+              help='Update all packages')
+@click.option('-r', '--reboot', is_flag=True, default=False,
+              help='Reboot if needed')
+@click.argument('minion_id', required=False)
+def update(non_interactive, reboot, minion_id):
+    """
+    Update all packages
+    """
+    executor = CephSaltExecutor(not non_interactive, minion_id,
+                                'ceph-salt.update', {
+                                    'ceph-salt': {
+                                        'updates': {
+                                            'reboot': reboot
+                                        }
+                                    }
+                                })
     retcode = executor.run()
     sys.exit(retcode)
 
