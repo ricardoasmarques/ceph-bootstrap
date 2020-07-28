@@ -67,6 +67,49 @@ def add_host(name, host):
     return ret
 
 
+def set_fsid(name):
+    ret = {'name': name, 'changes': {}, 'comment': '', 'result': False}
+    admin_hosts = __pillar__['ceph-salt']['minions']['admin']
+    __salt__['ceph_salt.begin_stage']("Find cluster FSID")
+    for admin_host in admin_hosts:
+        ssh_user = __pillar__['ceph-salt']['ssh']['user']
+        sudo = 'sudo ' if ssh_user != 'root' else ''
+        status_ret = __salt__['cmd.run_all']("ssh -o StrictHostKeyChecking=no "
+                                                "-i /tmp/ceph-salt-ssh-id_rsa {}@{} "
+                                                "'if [[ -f /etc/ceph/ceph.conf "
+                                                "&& -f /etc/ceph/ceph.client.admin.keyring ]]; "
+                                                "then timeout 60 {}ceph -s --format=json; "
+                                                "else (exit 1); fi'".format(
+                                                    ssh_user,
+                                                    admin_host,
+                                                    sudo))
+        if status_ret['retcode'] == 0:
+            status = json.loads(status_ret['stdout'])
+            if 'fsid' in status:
+                __salt__['ceph_salt.end_stage']("Find cluster FSID")
+                __salt__['grains.set']('ceph-salt:execution:fsid', status.get('fsid'))
+                ret['result'] = True
+                return ret
+    ret['comment'] = 'Unable to find cluster FSID. Is ceph cluster deployed?'
+    return ret
+
+
+def rm_clusters(name):
+    """
+    Requires the following grains to be set:
+      - ceph-salt:execution:fsid
+    """
+    ret = {'name': name, 'changes': {}, 'comment': '', 'result': False}
+    fsid = __salt__['grains.get']('ceph-salt:execution:fsid')
+    __salt__['ceph_salt.begin_stage']("Remove cluster {}".format(fsid))
+    cmd_ret = __salt__['cmd.run_all']("cephadm rm-cluster --fsid {} "
+                                      "--force".format(fsid))
+    if cmd_ret['retcode'] == 0:
+        __salt__['ceph_salt.end_stage']("Remove cluster {}".format(fsid))
+        ret['result'] = True
+    return ret
+
+
 def copy_ceph_conf_and_keyring(name):
     """
     Requires the following grains to be set:
