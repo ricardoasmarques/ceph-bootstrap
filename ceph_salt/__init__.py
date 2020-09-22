@@ -194,5 +194,19 @@ def shutdown(non_interactive, yes_i_really_really_mean_it):
     sys.exit(retcode)
 
 
+@cli.command(name='startup')
+@click.option('-n', '--non-interactive', is_flag=True, default=False,
+              help="Start 'ceph.target' service on all nodes in non-interactive mode")
+def startup(non_interactive):
+    """
+    Start 'ceph.target' service on all nodes
+    """
+    executor = CephSaltExecutor(not non_interactive, None,
+                                'ceph-salt.startup', {}, _prompt_proceed,
+                                deployed=True)
+    retcode = executor.run()
+    sys.exit(retcode)
+
+
 if __name__ == '__main__':
     ceph_salt_main()

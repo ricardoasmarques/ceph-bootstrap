@@ -1290,7 +1290,8 @@ class TerminalRenderer(Renderer):
 
 
 class CephSaltExecutor:
-    def __init__(self, interactive, minion_id, state, pillar, prompt_proceed):
+    def __init__(self, interactive, minion_id, state, pillar, prompt_proceed, deployed=None):
+        self.deployed = deployed
         self.prompt_proceed = prompt_proceed
         self.pillar = pillar
         self.state = state
@@ -1517,8 +1518,7 @@ class CephSaltExecutor:
         return 0
 
     @staticmethod
-    def check_prerequisites(minion_id, state, prompt_proceed):
-        deployed = None
+    def check_prerequisites(minion_id, state, prompt_proceed, deployed):
 
         # check salt master is configured
         try:
@@ -1533,7 +1533,8 @@ class CephSaltExecutor:
         if retcode > 0:
             return retcode, deployed
 
-        deployed = CephOrch.deployed()
+        if deployed is None:
+            deployed = CephOrch.deployed()
 
         # check config is valid
         error_msg = validate_config(deployed)
@@ -1588,7 +1589,7 @@ class CephSaltExecutor:
 
         # validate
         retcode, deployed = self.check_prerequisites(self.minion_id, self.state,
-                                                     self.prompt_proceed)
+                                                     self.prompt_proceed, self.deployed)
         if retcode > 0:
             return retcode
 
