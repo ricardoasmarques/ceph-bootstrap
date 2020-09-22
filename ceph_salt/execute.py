@@ -1640,15 +1640,15 @@ def run_purge(non_interactive, yes_i_really_really_mean_it, prompt_proceed):
         if fsid is not None:
             break
     if not fsid:
-        PP.pl_red("Unable to find cluster FSID. Is ceph cluster deployed?")
+        PP.pl_red("Unable to find cluster FSID. Is ceph cluster running?")
         return 3
     if not yes_i_really_really_mean_it:
         if non_interactive:
-            PP.pl_red("This command would completely remove ceph cluster '{}' and all the data "
+            PP.pl_red("This command would completely REMOVE ceph cluster '{}' and all the data "
                       "it contains. If you are really sure you want to do that, include the "
                       "'--yes-i-really-really-mean-it' option.".format(fsid))
             return 4
-        prompt_proceed("You are about to permanently remove ceph cluster '{}'. "
+        prompt_proceed("You are about to permanently REMOVE ceph cluster '{}'. "
                        "Proceed?".format(fsid), 'n')
         prompt_proceed("Proceed, even though this may destroy valuable data?", 'n')
     executor = CephSaltExecutor(not non_interactive, None,
