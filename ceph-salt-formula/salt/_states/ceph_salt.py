@@ -162,3 +162,16 @@ def check_safety(name):
         return ret
     ret['result'] = True
     return ret
+
+def check_fsid(name, formula):
+    ret = {'name': name, 'changes': {}, 'comment': '', 'result': False}
+    fsid = __salt__['pillar.get']('ceph-salt:execution:fsid')
+    if not fsid:
+        ret['comment'] = "No cluster FSID provided. Ceph cluster FSID " \
+                         "must be provided via custom Pillar value, e.g.: " \
+                         "\"salt -G ceph-salt:member state.apply {} " \
+                         "pillar='{{\"ceph-salt\": {{\"execution\": " \
+                         "{{\"fsid\": \"$FSID\"}}}}}}'\"".format(formula)
+        return ret
+    ret['result'] = True
+    return ret

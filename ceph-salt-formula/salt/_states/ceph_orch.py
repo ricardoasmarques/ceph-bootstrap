@@ -103,18 +103,30 @@ def rm_clusters(name):
     """
     ret = {'name': name, 'changes': {}, 'comment': '', 'result': False}
     fsid = __salt__['pillar.get']('ceph-salt:execution:fsid')
-    if not fsid:
-        ret['comment'] = "No cluster FSID provided. Ceph cluster FSID " \
-                         "must be provided via custom Pillar value, e.g.: " \
-                         "\"salt -G ceph-salt:member state.apply ceph-salt.purge " \
-                         "pillar='{\"ceph-salt\": {\"execution\": {\"fsid\": \"$FSID\"}}}'\""
-        return ret
     __salt__['ceph_salt.begin_stage']("Remove cluster {}".format(fsid))
     cmd_ret = __salt__['cmd.run_all']("cephadm rm-cluster --fsid {} "
                                       "--force".format(fsid))
     if cmd_ret['retcode'] == 0:
         __salt__['ceph_salt.end_stage']("Remove cluster {}".format(fsid))
         ret['result'] = True
+    return ret
+
+
+def stop_cluster(name):
+    """
+    Requires the following pillar to be set:
+      - ceph-salt:execution:fsid
+    """
+    ret = {'name': name, 'changes': {}, 'comment': '', 'result': False}
+    fsid = __salt__['pillar.get']('ceph-salt:execution:fsid')
+    service = 'ceph-{}.target'.format(fsid)
+    __salt__['ceph_salt.begin_stage']("Stop service {}".format(service))
+    cmd_ret = __salt__['cmd.run_all']("systemctl stop {} ".format(service))
+    if cmd_ret['retcode'] == 0:
+        __salt__['ceph_salt.end_stage']("Stop service {}".format(service))
+        ret['result'] = True
+    else:
+        ret['comment'] = cmd_ret.get('stderr')
     return ret
 
 

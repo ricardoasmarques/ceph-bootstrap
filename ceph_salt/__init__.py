@@ -7,11 +7,22 @@ import time
 import click
 import pkg_resources
 
-from .config_shell import run_config_cmdline, run_config_shell, run_status, run_export, run_import
+from .config_shell import (
+    run_config_cmdline,
+    run_config_shell,
+    run_export,
+    run_import,
+    run_status
+)
 from .exceptions import CephSaltException
 from .logging_utils import LoggingUtil
 from .terminal_utils import check_root_privileges, PrettyPrinter as PP
-from .execute import CephSaltExecutor, run_disengage_safety, run_purge
+from .execute import (
+    CephSaltExecutor,
+    run_disengage_safety,
+    run_purge,
+    run_shutdown
+)
 
 
 logger = logging.getLogger(__name__)
@@ -128,14 +139,27 @@ def disengage_safety():
 
 @cli.command(name='purge')
 @click.option('-n', '--non-interactive', is_flag=True, default=False,
-              help='Destroy all ceph clusters in non-interactive mode')
+              help='Destroy ceph cluster in non-interactive mode')
 @click.option('--yes-i-really-really-mean-it', is_flag=True, default=False,
               help='Confirm I really want to perform this dangerous operation')
 def purge(non_interactive, yes_i_really_really_mean_it):
     """
-    Destroy all ceph clusters
+    Destroy ceph cluster
     """
     retcode = run_purge(non_interactive, yes_i_really_really_mean_it, _prompt_proceed)
+    sys.exit(retcode)
+
+
+@cli.command(name='shutdown')
+@click.option('-n', '--non-interactive', is_flag=True, default=False,
+              help="Stop 'ceph-<FSID>.target' service on all nodes in non-interactive mode")
+@click.option('--yes-i-really-really-mean-it', is_flag=True, default=False,
+              help='Confirm I really want to perform this dangerous operation')
+def shutdown(non_interactive, yes_i_really_really_mean_it):
+    """
+    Stop 'ceph-<FSID>.target' service on all nodes
+    """
+    retcode = run_shutdown(non_interactive, yes_i_really_really_mean_it, _prompt_proceed)
     sys.exit(retcode)
 
 

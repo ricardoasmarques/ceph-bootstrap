@@ -1640,19 +1640,59 @@ def run_purge(non_interactive, yes_i_really_really_mean_it, prompt_proceed):
         if fsid is not None:
             break
     if not fsid:
-        PP.pl_red("Unable to find cluster FSID. Is ceph cluster deployed?")
+        PP.pl_red("Unable to find cluster FSID. Is ceph cluster running?")
         return 3
     if not yes_i_really_really_mean_it:
         if non_interactive:
-            PP.pl_red("This command would completely remove ceph cluster '{}' and all the data "
+            PP.pl_red("This command would completely REMOVE ceph cluster '{}' and all the data "
                       "it contains. If you are really sure you want to do that, include the "
                       "'--yes-i-really-really-mean-it' option.".format(fsid))
             return 4
-        prompt_proceed("You are about to permanently remove ceph cluster '{}'. "
+        prompt_proceed("You are about to permanently REMOVE ceph cluster '{}'. "
                        "Proceed?".format(fsid), 'n')
         prompt_proceed("Proceed, even though this may destroy valuable data?", 'n')
     executor = CephSaltExecutor(not non_interactive, None,
                                 'ceph-salt.purge', {
+                                    'ceph-salt': {
+                                        'execution': {
+                                            'fsid': fsid
+                                        }
+                                    }
+                                }, prompt_proceed)
+    return executor.run()
+
+
+def run_shutdown(non_interactive, yes_i_really_really_mean_it, prompt_proceed):
+    admin_minions = GrainsManager.filter_by('ceph-salt:roles', 'admin')
+    if not admin_minions:
+        PP.pl_red("No ceph-salt admin minions found.")
+        return 1
+    osd_map = None
+    for minion in admin_minions:
+        osd_map = SaltClient.local().cmd(minion, 'ceph_orch.osd_map')[minion]
+        if osd_map is not None:
+            break
+    if not osd_map:
+        PP.pl_red("Unable to get cluster osd_map. Is ceph cluster running?")
+        return 2
+    flags_set = osd_map['flags_set']
+    fsid = osd_map['fsid']
+    if 'noout' not in flags_set:
+        PP.pl_red("OSD 'noout' flag must be set before stopping 'ceph-{}.target' service. "
+                  "You can set it by executing 'ceph osd set noout' command.".format(fsid))
+        return 3
+    if not yes_i_really_really_mean_it:
+        if non_interactive:
+            PP.pl_red("This command will STOP 'ceph-{}.target' service on all nodes. "
+                      "If you are really sure you want to do that, include the "
+                      "'--yes-i-really-really-mean-it' option.".format(fsid))
+            return 4
+        prompt_proceed("You are about to STOP 'ceph-{}.target' service on all nodes. "
+                       "Proceed?".format(fsid), 'n')
+        prompt_proceed("Before proceeding, make sure any clients accessing the cluster are "
+                       "shut down or disconnected. Proceed?", 'n')
+    executor = CephSaltExecutor(not non_interactive, None,
+                                'ceph-salt.shutdown', {
                                     'ceph-salt': {
                                         'execution': {
                                             'fsid': fsid
