@@ -30,3 +30,9 @@ def fsid():
         status = json.loads(ret['stdout'])
         return status.get('fsid', None)
     return None
+
+def osd_map():
+    ret = __salt__['cmd.run_all']("ceph osd dump --format=json")
+    if ret['retcode'] == 0:
+        return json.loads(ret['stdout'])
+    return None
