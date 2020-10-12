@@ -1229,36 +1229,15 @@ class CephSaltConfigShell(configshell.ConfigShell):
         self._parser = parser
 
 
-def check_config_prerequesites(sync_modules_target=None):
-    try:
-        check_salt_master_status()
-    except CephSaltPillarNotConfigured:
-        try:
-            PillarManager.install_pillar()
-        except PillarFileNotPureYaml:
-            PP.println("""
-ceph-salt pillar file is not installed yet, and we can't add it automatically
-because pillar's top.sls is probably using Jinja2 expressions.
-Please create a ceph-salt.sls file in salt's pillar directory with the following
-content:
-
-ceph-salt: {}
-
-and add the following pillar configuration to top.sls file:
-
-base:
-  'ceph-salt:member':
-    - match: grain
-    - ceph-salt
-""")
-            return False
+def check_config_prerequesites(sync_modules_target=None, check_ext_pillar=True):
+    check_salt_master_status(check_ext_pillar)
     if sync_modules_target:
         sync_modules(sync_modules_target)
     return True
 
 
 def run_status():
-    if not check_config_prerequesites(sync_modules_target='ceph-salt:roles:admin'):
+    if not check_config_prerequesites(sync_modules_target='ceph-salt:roles:admin', check_ext_pillar=True):
         return False
     status = {}
     result = True
@@ -1282,7 +1261,7 @@ def run_status():
 
 
 def run_config_shell():
-    if not check_config_prerequesites(sync_modules_target=None):
+    if not check_config_prerequesites(sync_modules_target=None, check_ext_pillar=False):
         return False
     shell = CephSaltConfigShell()
     generate_config_shell_tree(shell)
@@ -1297,7 +1276,7 @@ def run_config_shell():
 
 
 def run_config_cmdline(cmdline):
-    if not check_config_prerequesites(sync_modules_target=None):
+    if not check_config_prerequesites(sync_modules_target=None, check_ext_pillar=False):
         return False
     shell = CephSaltConfigShell()
     generate_config_shell_tree(shell)

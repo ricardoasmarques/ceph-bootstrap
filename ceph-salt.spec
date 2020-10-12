@@ -96,13 +96,6 @@ cp ceph-salt-formula/metadata/* %{buildroot}%{fdir}/metadata/%{fname}/
 
 mkdir -p %{buildroot}%{_datadir}/%{fname}/pillar
 
-# pillar top sls file
-cat <<EOF > %{buildroot}%{_datadir}/%{fname}/pillar/top.sls
-base:
-    '*':
-    - ceph-salt
-EOF
-
 # empty ceph-salt.sls file
 cat <<EOF > %{buildroot}%{_datadir}/%{fname}/pillar/ceph-salt.sls
 ceph-salt:
@@ -151,7 +144,6 @@ Salt Formula to deploy Ceph clusters.
 %dir %attr(0755, salt, salt) %{_datadir}/%{fname}/pillar
 %doc %attr(0644, salt, salt) %{_datadir}/%{fname}/pillar.conf.example
 %attr(0600, salt, salt) %{_datadir}/%{fname}/pillar/ceph-salt.sls
-%attr(0644, salt, salt) %{_datadir}/%{fname}/pillar/top.sls
 %{fdir}/states/
 %{fdir}/metadata/
 

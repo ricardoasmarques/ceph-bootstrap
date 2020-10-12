@@ -27,7 +27,14 @@ class NoPillarDirectoryConfigured(ValidationException):
 
 class CephSaltPillarNotConfigured(ValidationException):
     def __init__(self):
-        super(CephSaltPillarNotConfigured, self).__init__("ceph-salt pillar not configured")
+        super(CephSaltPillarNotConfigured, self).__init__("""
+The ceph-salt pillar module is not installed yet.
+
+Please configure it by editing external pillar on '/etc/salt/master':
+
+ext_pillar:
+  - ceph_salt: ''
+""")
 
 
 def check_salt_master():
@@ -47,18 +54,19 @@ def check_salt_master():
     raise NoSaltMasterProcess()
 
 
-def check_ceph_salt_pillar():
+def check_ceph_salt_pillar(check_ext_pillar=True):
     logger.info("checking if pillar directory is configured")
     if not SaltClient.pillar_fs_path():
         logger.info("salt-master pillar_roots configuration does not have any directory")
         raise NoPillarDirectoryConfigured()
 
-    logger.info("checking if ceph-salt pillar is correctly configured")
-    if not PillarManager.pillar_installed():
-        logger.error("ceph-salt is not present in the pillar")
-        raise CephSaltPillarNotConfigured()
+    if check_ext_pillar:
+        logger.info("checking if ceph-salt pillar is correctly configured")
+        if not PillarManager.pillar_installed():
+            logger.error("ceph-salt is not present in the pillar")
+            raise CephSaltPillarNotConfigured()
 
 
-def check_salt_master_status():
+def check_salt_master_status(check_ext_pillar=True):
     check_salt_master()
-    check_ceph_salt_pillar()
+    check_ceph_salt_pillar(check_ext_pillar)

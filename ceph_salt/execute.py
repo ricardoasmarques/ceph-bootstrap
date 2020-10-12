@@ -1328,6 +1328,11 @@ class CephSaltExecutor:
                 logger.warning('failed to restart salt-master process')
                 PP.pl_red('Failed to restart salt-master service, please restart it manually')
                 return 6
+            # sync master external pillar module
+            #SaltClient.runner().cmd('saltutil.sync_pillar')
+            # refresh pillar
+            SaltClient.local_cmd('ceph-salt:member', 'saltutil.refresh_pillar', tgt_type='grain')
+
 
         # check ceph-salt formula again after salt-master restart
         result = SaltClient.local_cmd('ceph-salt:member', 'state.sls_exists', [state],
@@ -1570,6 +1575,9 @@ class CephSaltExecutor:
             logger.error(e)
             PP.pl_red(e)
             return 1, deployed
+
+        # sync master external pillar module
+        #SaltClient.runner().cmd('saltutil.sync_pillar')
 
         # sync_all
         retcode = CephSaltExecutor.check_sync_all()
