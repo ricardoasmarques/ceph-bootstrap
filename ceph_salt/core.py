@@ -14,9 +14,6 @@ from .salt_utils import GrainsManager, PillarManager, SaltClient
 logger = logging.getLogger(__name__)
 
 
-CEPH_SALT_GRAIN_KEY = 'ceph-salt'
-
-
 class CephNode:
     def __init__(self, minion_id):
         self.minion_id = minion_id
@@ -88,15 +85,6 @@ class CephNode:
             self._roles = _roles
         return self._roles
 
-    @property
-    def execution(self):
-        if self._execution is None:
-            result = GrainsManager.get_grain(self.minion_id, CEPH_SALT_GRAIN_KEY)
-            self._execution = {}
-            if 'execution' in result[self.minion_id]:
-                self._execution = result[self.minion_id]['execution']
-        return self._execution
-
     def add_role(self, role):
         self.roles.add(role)
 
@@ -105,16 +93,6 @@ class CephNode:
         role_list.sort()
         return role_list
 
-    def _grains_value(self):
-        return {
-            'member': True,
-            'execution': self.execution,
-            'roles': self._role_list()
-        }
-
-    def save(self):
-        GrainsManager.set_grain(self.minion_id, CEPH_SALT_GRAIN_KEY, self._grains_value())
-
 
 class CephNodeManager:
     _ceph_salt_nodes = {}
@@ -122,7 +100,7 @@ class CephNodeManager:
     @classmethod
     def _load(cls):
         if not cls._ceph_salt_nodes:
-            minions = GrainsManager.filter_by(CEPH_SALT_GRAIN_KEY)
+            minions = PillarManager.get('ceph-salt:minions:all', [])
             cls._ceph_salt_nodes = {minion: CephNode(minion) for minion in minions}
 
     @classmethod
@@ -151,7 +129,6 @@ class CephNodeManager:
     def add_node(cls, minion_id):
         cls._load()
         node = CephNode(minion_id)
-        node.save()
         cls._ceph_salt_nodes[minion_id] = node
         cls.save_in_pillar()
 
@@ -162,7 +139,6 @@ class CephNodeManager:
         if roles:
             raise CephNodeHasRolesException(minion_id, sorted(roles))
         del cls._ceph_salt_nodes[minion_id]
-        GrainsManager.del_grain(minion_id, CEPH_SALT_GRAIN_KEY)
         cls.save_in_pillar()
 
     @classmethod

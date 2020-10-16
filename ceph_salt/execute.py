@@ -20,7 +20,7 @@ from .salt_utils import SaltClient, GrainsManager, CephOrch, PillarManager
 from .terminal_utils import PrettyPrinter as PP
 from .validate.config import validate_config
 from .validate.salt_master import check_salt_master_status
-from .validate.salt_minion import sync_all
+from .validate.salt_minion import pillar_refresh, sync_all
 
 
 # pylint: disable=C0103
@@ -529,7 +529,7 @@ class CephSaltModel:
         self._init_minions()
 
     def _init_minions(self) -> None:
-        minions = GrainsManager.filter_by('ceph-salt', 'member')
+        minions = PillarManager.get('ceph-salt:minions:all', [])
         if self.minion_id is not None:
             if self.minion_id not in minions:
                 raise MinionDoesNotExistInConfiguration(self.minion_id)
@@ -582,7 +582,7 @@ class Renderer:
         if self.model.minion_id:
             self.cmd_str = "salt {} state.apply {}".format(self.model.minion_id, self.model.state)
         else:
-            self.cmd_str = "salt -G 'ceph-salt:member' state.apply {}".format(self.model.state)
+            self.cmd_str = "salt -I 'ceph-salt:minions' state.apply {}".format(self.model.state)
 
     def minion_update(self, minion: str):
         pass
@@ -704,11 +704,11 @@ class CephSaltExecutorThread(threading.Thread):
                                                       [model.state,
                                                        "pillar={}".format(model.pillar)])
             else:
-                logger.info("Calling: salt -G 'ceph-salt:member' state.apply %s", model.state)
-                returns = SaltClient.local().cmd_iter('ceph-salt:member', 'state.apply',
+                logger.info("Calling: salt -I 'ceph-salt:minions' state.apply %s", model.state)
+                returns = SaltClient.local().cmd_iter('ceph-salt:minions', 'state.apply',
                                                       [model.state,
                                                        "pillar={}".format(model.pillar)],
-                                                      tgt_type='grain')
+                                                      tgt_type='pillar')
             for ret in returns:
                 logger.info("Response:\n%s", json.dumps(ret, sort_keys=True, indent=2))
                 now = datetime.datetime.utcnow()
@@ -1306,12 +1306,12 @@ class CephSaltExecutor:
     def check_formula(state, prompt_proceed):
         # verify that ceph-salt formula is available
         PP.println("Checking if {} formula is available...".format(state))
-        result = SaltClient.local_cmd('ceph-salt:member', 'state.sls_exists', [state],
-                                      tgt_type='grain')
+        result = SaltClient.local_cmd('ceph-salt:minions', 'state.sls_exists', [state],
+                                      tgt_type='pillar')
         if not all(result.values()):
             # check running jobs
             logger.error("%s formula not found: checking for running Salt jobs", state)
-            result = SaltClient.local_cmd('ceph-salt:member', 'saltutil.running', tgt_type='grain')
+            result = SaltClient.local_cmd('ceph-salt:minions', 'saltutil.running', tgt_type='pillar')
             if any(result.values()):
                 logger.error("Running Salt jobs detected: refusing to apply Salt Formula")
                 PP.pl_red("Running Salt jobs detected. The safest thing to do in this case is "
@@ -1330,8 +1330,8 @@ class CephSaltExecutor:
                 return 6
 
         # check ceph-salt formula again after salt-master restart
-        result = SaltClient.local_cmd('ceph-salt:member', 'state.sls_exists', [state],
-                                      tgt_type='grain')
+        result = SaltClient.local_cmd('ceph-salt:minions', 'state.sls_exists', [state],
+                                      tgt_type='pillar')
         if not all(result.values()):
             PP.pl_red("Could not find {} formula. Please check if ceph-salt-formula package "
                       "is installed".format(state))
@@ -1342,6 +1342,7 @@ class CephSaltExecutor:
     @staticmethod
     def check_sync_all():
         PP.println("Syncing minions with the master...")
+        pillar_refresh()
         try:
             sync_all()
         except ValidationException as e:
@@ -1382,7 +1383,7 @@ class CephSaltExecutor:
         all_minions = PillarManager.get('ceph-salt:minions:all', [])
         minion_count = len(all_minions)
         PP.println("Pinging {} minions...".format(minion_count))
-        result = SaltClient.local_cmd('ceph-salt:member', 'test.ping', tgt_type='grain')
+        result = SaltClient.local_cmd('ceph-salt:minions', 'test.ping', tgt_type='pillar')
         # result will be something like {'node3.ses7.test': True, 'master.ses7.test': True,
         # 'node2.ses7.test': True, 'node1.ses7.test': True}
         minions_responding = 0
@@ -1408,10 +1409,10 @@ class CephSaltExecutor:
         minion_count = len(minion_hostnames)
         PP.println("Running DNS lookups on {} minions...".format(minion_count))
         salt_result = SaltClient.local().cmd(
-            'ceph-salt:member',
+            'ceph-salt:minions',
             'ceph_salt.probe_dns',
             minion_hostnames,
-            tgt_type='grain')
+            tgt_type='pillar')
         log_msg = "probe_dns returned: {}".format(salt_result)
         logger.info(log_msg)
         if all(salt_result.values()):
@@ -1444,10 +1445,10 @@ class CephSaltExecutor:
         minion_count = len(minion_hostnames)
         PP.println("Checking time sync service on {} minions...".format(minion_count))
         salt_result = SaltClient.local().cmd(
-            'ceph-salt:member',
+            'ceph-salt:minions',
             'ceph_salt.probe_time_sync',
             [],
-            tgt_type='grain')
+            tgt_type='pillar')
         log_msg = "probe_time_sync returned: {}".format(salt_result)
         logger.info(log_msg)
         if all(salt_result.values()):
@@ -1539,10 +1540,10 @@ class CephSaltExecutor:
         minion_count = len(minion_hostnames)
         PP.println("Checking for FQDN environment on {} minions...".format(minion_count))
         salt_result = SaltClient.local().cmd(
-            'ceph-salt:member',
+            'ceph-salt:minions',
             'ceph_salt.probe_fqdn',
             [],
-            tgt_type='grain')
+            tgt_type='pillar')
         log_msg = "probe_fqdn returned: {}".format(salt_result)
         logger.info(log_msg)
         if __all_yes(salt_result.values()):
@@ -1651,10 +1652,10 @@ class CephSaltExecutor:
             returns = SaltClient.local().cmd(self.minion_id, 'state.apply',
                                              ['ceph-salt.reset'])
         else:
-            logger.info("Calling: salt -G 'ceph-salt:member' state.apply ceph-salt.reset")
-            returns = SaltClient.local().cmd('ceph-salt:member', 'state.apply',
+            logger.info("Calling: salt -I 'ceph-salt:minions' state.apply ceph-salt.reset")
+            returns = SaltClient.local().cmd('ceph-salt:minions', 'state.apply',
                                              ['ceph-salt.reset'],
-                                             tgt_type='grain')
+                                             tgt_type='pillar')
         for minion, data in returns.items():
             for state, ret in data.items():
                 if not ret['result']:
@@ -1696,7 +1697,7 @@ def run_disengage_safety():
 
 
 def run_purge(non_interactive, yes_i_really_really_mean_it, prompt_proceed):
-    admin_minions = GrainsManager.filter_by('ceph-salt:roles', 'admin')
+    admin_minions = PillarManager.get('ceph-salt:minions:admin', [])
     if not admin_minions:
         PP.pl_red("No ceph-salt admin minions found.")
         return 1

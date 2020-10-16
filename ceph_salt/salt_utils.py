@@ -135,15 +135,6 @@ class GrainsManager:
         cls.logger.info("Deleted '%s' grain from %s: result=%s", key, target, result)
 
     @classmethod
-    def filter_by(cls, key, val=None):
-        condition = '{}:{}'.format(key, val if val else '*')
-        with contextlib.redirect_stdout(None):
-            result = SaltClient.local_cmd(condition, 'test.true', tgt_type='grain',
-                                          full_return=True)
-        logger.debug("list of minions that match '%s': %s", condition, list(result))
-        return list(result)
-
-    @classmethod
     def get_grain(cls, target, key):
         target, tgt_type = cls._format_target(target)
         cls.logger.debug("Getting '%s' grain from %s", key, target)
@@ -334,7 +325,6 @@ class PillarManager:
         cls._load()
         cls._set_dict_value(cls.pillar_data, key, value)
         cls._save_yaml(cls.pillar_data, cls.PILLAR_FILE)
-        SaltClient.local().cmd('*', 'saltutil.pillar_refresh', tgt_type="compound")
         if key in ('ceph-salt:ssh:private_key', 'ceph-salt:dashboard:password'):
             cls.logger.info("Set '%s' to pillar", key)
         else:
@@ -350,7 +340,6 @@ class PillarManager:
             return
         cls._del_dict_key(cls.pillar_data, key)
         cls._save_yaml(cls.pillar_data, cls.PILLAR_FILE)
-        SaltClient.local().cmd('*', 'saltutil.pillar_refresh', tgt_type="compound")
         cls.logger.info("Deleted '%s' from pillar", key)
 
     @classmethod
@@ -363,10 +352,11 @@ class CephOrch:
 
     @staticmethod
     def host_ls():
+        admin_minions = PillarManager.get('ceph-salt:minions:admin', [])
         with contextlib.redirect_stdout(None):
-            result = SaltClient.local_cmd('ceph-salt:roles:admin', 'ceph_orch.configured',
+            result = SaltClient.local_cmd(admin_minions, 'ceph_orch.configured',
                                           full_return=True,
-                                          tgt_type='grain')
+                                          tgt_type='list')
         for minion, value in result.items():
             if value.get('retcode') > 0:
                 raise CephSaltException("Failed to check if ceph orch is configured "
@@ -382,10 +372,11 @@ class CephOrch:
 
     @staticmethod
     def deployed():
+        admin_minions = PillarManager.get('ceph-salt:minions:admin', [])
         with contextlib.redirect_stdout(None):
-            result = SaltClient.local_cmd('ceph-salt:roles:admin', 'ceph_orch.ceph_configured',
+            result = SaltClient.local_cmd(admin_minions, 'ceph_orch.ceph_configured',
                                           full_return=True,
-                                          tgt_type='grain')
+                                          tgt_type='list')
         for minion, value in result.items():
             if value.get('retcode') > 0:
                 raise CephSaltException("Failed to check if ceph is configured "

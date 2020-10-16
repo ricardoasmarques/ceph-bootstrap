@@ -171,7 +171,7 @@ def check_fsid(name, formula):
     if not fsid:
         ret['comment'] = "No cluster FSID provided. Ceph cluster FSID " \
                          "must be provided via custom Pillar value, e.g.: " \
-                         "\"salt -G ceph-salt:member state.apply {} " \
+                         "\"salt -I ceph-salt:minions state.apply {} " \
                          "pillar='{{\"ceph-salt\": {{\"execution\": " \
                          "{{\"fsid\": \"$FSID\"}}}}}}'\"".format(formula)
         return ret

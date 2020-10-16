@@ -142,15 +142,10 @@ class RoleHandler(OptionHandler):
         _minions = set(value)
         to_remove = self._value - _minions
         to_add = _minions - self._value
-
         for minion in to_remove:
             CephNodeManager.ceph_salt_nodes()[minion].roles.remove(self.role)
-            CephNodeManager.ceph_salt_nodes()[minion].save()
-
         for minion in to_add:
             CephNodeManager.ceph_salt_nodes()[minion].add_role(self.role)
-            CephNodeManager.ceph_salt_nodes()[minion].save()
-
         CephNodeManager.save_in_pillar()
 
         self._value = set(value)
@@ -1228,19 +1223,19 @@ class CephSaltConfigShell(configshell.ConfigShell):
         self._parser = parser
 
 
-def check_config_prerequesites(sync_modules_target=None):
+def check_config_prerequesites(do_sync_modules=False):
     try:
         check_salt_master_status()
     except CephSaltPillarNotConfigured:
         PP.println('Configuring ceph-salt pillar...')
         PillarManager.install_pillar()
-    if sync_modules_target:
-        sync_modules(sync_modules_target)
+    if do_sync_modules:
+        sync_modules()
     return True
 
 
 def run_status():
-    if not check_config_prerequesites(sync_modules_target='ceph-salt:roles:admin'):
+    if not check_config_prerequesites(True):
         return False
     status = {}
     result = True
@@ -1264,7 +1259,7 @@ def run_status():
 
 
 def run_config_shell():
-    if not check_config_prerequesites(sync_modules_target=None):
+    if not check_config_prerequesites(False):
         return False
     shell = CephSaltConfigShell()
     generate_config_shell_tree(shell)
@@ -1279,7 +1274,7 @@ def run_config_shell():
 
 
 def run_config_cmdline(cmdline):
-    if not check_config_prerequesites(sync_modules_target=None):
+    if not check_config_prerequesites(False):
         return False
     shell = CephSaltConfigShell()
     generate_config_shell_tree(shell)
@@ -1305,6 +1300,7 @@ def run_export(pretty):
 def run_import(config_file):
     with open(config_file) as json_file:
         config = json.load(json_file)
+    #TODO do same validation on config??
     salt_minions = CephNodeManager.list_all_minions()
     minions_config = config.get('minions', {})
     # Validate
@@ -1312,18 +1308,8 @@ def run_import(config_file):
         if minion not in salt_minions:
             PP.pl_red("Cannot find minion '{}'".format(minion))
             return False
-    # Update grains
-    minions = GrainsManager.filter_by('ceph-salt', 'member')
-    if minions:
-        GrainsManager.del_grain(minions, 'ceph-salt')
-    for minion in minions_config.get('all', []):
-        node = CephNode(minion)
-        if minion in minions_config.get('admin', []):
-            node.add_role('admin')
-        if minion in minions_config.get('cephadm', []):
-            node.add_role('cephadm')
-        node.save()
     # Update pillar
     PillarManager.set('ceph-salt', config)
+    # TODO sync pillar
     PP.pl_green('Configuration imported.')
     return True
