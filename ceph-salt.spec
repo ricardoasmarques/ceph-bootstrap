@@ -21,7 +21,7 @@
 %endif
 
 Name:           ceph-salt
-Version:        15.2.13
+Version:        15.2.14
 Release:        1%{?dist}
 Summary:        CLI tool to deploy Ceph clusters
 License:        MIT
@@ -93,28 +93,6 @@ mkdir -p %{buildroot}%{fdir}/metadata/%{fname}/
 cp -R ceph-salt-formula/salt/* %{buildroot}%{fdir}/states/
 cp ceph-salt-formula/metadata/* %{buildroot}%{fdir}/metadata/%{fname}/
 
-mkdir -p %{buildroot}%{_datadir}/%{fname}/pillar
-
-# pillar top sls file
-cat <<EOF > %{buildroot}%{_datadir}/%{fname}/pillar/top.sls
-base:
-    '*':
-    - ceph-salt
-EOF
-
-# empty ceph-salt.sls file
-cat <<EOF > %{buildroot}%{_datadir}/%{fname}/pillar/ceph-salt.sls
-ceph-salt:
-
-EOF
-
-cat <<EOF > %{buildroot}%{_datadir}/%{fname}/pillar.conf.example
-pillar_roots:
-    base:
-    - /srv/pillar
-    - %{_datadir}/%{fname}/pillar
-EOF
-
 
 %files
 %license LICENSE
@@ -146,11 +124,6 @@ Salt Formula to deploy Ceph clusters.
 %dir %attr(0755, root, salt) %{fdir}/
 %dir %attr(0755, root, salt) %{fdir}/states/
 %dir %attr(0755, root, salt) %{fdir}/metadata/
-%dir %attr(0755, root, root) %{_datadir}/%{fname}
-%dir %attr(0755, salt, salt) %{_datadir}/%{fname}/pillar
-%doc %attr(0644, salt, salt) %{_datadir}/%{fname}/pillar.conf.example
-%attr(0600, salt, salt) %{_datadir}/%{fname}/pillar/ceph-salt.sls
-%attr(0644, salt, salt) %{_datadir}/%{fname}/pillar/top.sls
 %{fdir}/states/
 %{fdir}/metadata/
 

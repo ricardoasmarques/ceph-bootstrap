@@ -1,8 +1,9 @@
-{% if 'ceph-salt' in grains and grains['ceph-salt']['member'] %}
+{% if grains['id'] in pillar['ceph-salt']['minions']['all'] %}
 
 include:
     - ..reset
     - ..common.sshkey
+    - .sysctl
     - .tuned-off
     - .tuned-latency
     - .tuned-throughput
